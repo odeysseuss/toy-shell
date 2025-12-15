@@ -1,8 +1,10 @@
 mod cmds;
+mod tokenizer;
 mod utils;
 
 use crate::cmds::{cd_cmd, cmd_type, exec_ext_cmd};
-use crate::utils::{check_ext_cmd, tokenize};
+use crate::tokenizer::tokenize;
+use crate::utils::check_ext_cmd;
 
 use std::{
     env,
