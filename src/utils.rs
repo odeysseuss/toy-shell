@@ -44,28 +44,38 @@ pub fn tokenize(input: &str) -> Vec<String> {
         }
 
         match ch {
-            '\\' => escape = true,
+            '\\' => {
+                if !in_double_quotes && !in_single_quotes {
+                    escape = true;
+                }
+            }
             '\'' => {
                 if !in_double_quotes {
+                    // single quotes inside single quotes: toggle state
                     in_single_quotes = !in_single_quotes;
                 } else {
+                    // single quotes inside double quotes: regular chars
                     cur_tok.push(ch);
                 }
             }
             '"' => {
                 if !in_single_quotes {
+                    // double quotes inside double quotes: toggle state
                     in_double_quotes = !in_double_quotes;
                 } else {
+                    // double quotes inside single quotes: regular chars
                     cur_tok.push(ch);
                 }
             }
-            ' ' | '\t' | '\n' => {
+            ' ' => {
                 if !in_single_quotes && !in_double_quotes {
+                    // keep spaces if in quotes
                     if !cur_tok.is_empty() {
                         toks.push(cur_tok.clone());
                         cur_tok.clear();
                     }
                 } else {
+                    // else remove spaces
                     cur_tok.push(ch);
                 }
             }
