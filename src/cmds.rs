@@ -15,7 +15,7 @@ pub fn cmd_type(cmd: &str) {
     }
 }
 
-pub fn exec_ext_cmd(cmd: &str, args: Vec<&str>) {
+pub fn exec_ext_cmd(cmd: &str, args: Vec<String>) {
     // check_ext_cmd will be called later
     let output = Command::new(cmd)
         .args(&args)

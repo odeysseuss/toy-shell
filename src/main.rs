@@ -1,8 +1,8 @@
 mod cmds;
 mod utils;
 
-use cmds::{cd_cmd, cmd_type, exec_ext_cmd};
-use utils::check_ext_cmd;
+use crate::cmds::{cd_cmd, cmd_type, exec_ext_cmd};
+use crate::utils::{check_ext_cmd, tokenize};
 
 use std::{
     env,
@@ -17,12 +17,12 @@ fn main() {
         let mut command: String = String::new();
         io::stdin().read_line(&mut command).unwrap();
 
-        let toks: Vec<&str> = command.trim().split_whitespace().collect();
+        let toks: Vec<String> = tokenize(command.trim());
         if toks.is_empty() {
             continue;
         }
 
-        match toks[0] {
+        match toks[0].as_str() {
             "exit" => break,
             "echo" => {
                 if toks.len() > 1 {
@@ -33,7 +33,7 @@ fn main() {
             }
             "type" => {
                 if toks.len() > 1 {
-                    cmd_type(toks[1]);
+                    cmd_type(&toks[1]);
                 }
             }
             "pwd" => {
@@ -44,7 +44,7 @@ fn main() {
             }
             "cd" => {
                 if toks.len() > 1 {
-                    cd_cmd(toks[1]);
+                    cd_cmd(&toks[1]);
                 }
             }
             _ => {

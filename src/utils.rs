@@ -28,3 +28,54 @@ pub fn check_ext_cmd(cmd: &str) -> (bool, Option<PathBuf>) {
     }
     return (false, None);
 }
+
+pub fn tokenize(input: &str) -> Vec<String> {
+    let mut toks = Vec::new();
+    let mut cur_tok = String::new();
+    let mut escape = false;
+    let mut in_double_quotes = false;
+    let mut in_single_quotes = false;
+
+    for ch in input.chars() {
+        if escape {
+            cur_tok.push(ch);
+            escape = false;
+            continue;
+        }
+
+        match ch {
+            '\\' => escape = true,
+            '\'' => {
+                if !in_double_quotes {
+                    in_single_quotes = !in_single_quotes;
+                } else {
+                    cur_tok.push(ch);
+                }
+            }
+            '"' => {
+                if !in_single_quotes {
+                    in_double_quotes = !in_double_quotes;
+                } else {
+                    cur_tok.push(ch);
+                }
+            }
+            ' ' | '\t' | '\n' => {
+                if !in_single_quotes && !in_double_quotes {
+                    if !cur_tok.is_empty() {
+                        toks.push(cur_tok.clone());
+                        cur_tok.clear();
+                    }
+                } else {
+                    cur_tok.push(ch);
+                }
+            }
+            _ => cur_tok.push(ch),
+        }
+    }
+
+    if !cur_tok.is_empty() {
+        toks.push(cur_tok);
+    }
+
+    return toks;
+}
