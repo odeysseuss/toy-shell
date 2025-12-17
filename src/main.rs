@@ -69,7 +69,7 @@ fn main() {
                     let output = exec_ext_cmd(&cmd_toks[0], cmd_toks[1..].to_vec());
                     write_to_file(output, &stdout_file);
                 } else {
-                    println!("{}: command not found", cmd_toks[0]);
+                    eprintln!("{}: command not found", cmd_toks[0]);
                 }
             }
         }
