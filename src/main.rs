@@ -2,14 +2,11 @@ mod cmds;
 mod tokenizer;
 mod utils;
 
-use crate::cmds::{cd_cmd, cmd_type, exec_ext_cmd};
+use crate::cmds::{cd_cmd, cmd_echo, cmd_pwd, cmd_type, exec_ext_cmd};
 use crate::tokenizer::tokenize;
-use crate::utils::check_ext_cmd;
+use crate::utils::{check_ext_cmd, write_to_file};
 
-use std::{
-    env,
-    io::{self, Write},
-};
+use std::io::{self, Write};
 
 fn main() {
     loop {
@@ -24,37 +21,55 @@ fn main() {
             continue;
         }
 
-        match toks[0].as_str() {
-            "exit" => break,
-            "echo" => {
-                if toks.len() > 1 {
-                    println!("{}", toks[1..].join(" "));
-                } else {
-                    println!();
+        let mut cmd_toks: Vec<String> = Vec::new();
+        let mut stdout_file = None;
+
+        let mut i = 0;
+        while i < toks.len() {
+            match toks[i].as_str() {
+                ">" | "1>" => {
+                    if i + 1 < toks.len() {
+                        stdout_file = Some(toks[i + 1].clone());
+                        i += 2; // skip > and filename
+                    } else {
+                        i += 1; // skip the redir if no filename
+                    }
+                }
+                _ => {
+                    cmd_toks.push(toks[i].clone());
+                    i += 1;
                 }
             }
+        }
+
+        match cmd_toks[0].as_str() {
+            "exit" => break,
+            "echo" => {
+                let output = cmd_echo(cmd_toks[1..].to_vec());
+                write_to_file(output, &stdout_file);
+            }
             "type" => {
-                if toks.len() > 1 {
-                    cmd_type(&toks[1]);
+                if cmd_toks.len() > 1 {
+                    let output = cmd_type(&cmd_toks[1]);
+                    write_to_file(output, &stdout_file);
                 }
             }
             "pwd" => {
-                println!(
-                    "{}",
-                    env::current_dir().expect("Failed to get cwd").display()
-                );
+                let output = cmd_pwd();
+                write_to_file(output, &stdout_file);
             }
             "cd" => {
-                if toks.len() > 1 {
-                    cd_cmd(&toks[1]);
+                if cmd_toks.len() > 1 {
+                    cd_cmd(&cmd_toks[1]);
                 }
             }
             _ => {
-                let (found, _) = check_ext_cmd(&toks[0]);
+                let (found, _) = check_ext_cmd(&cmd_toks[0]);
                 if found {
-                    exec_ext_cmd(&toks[0], toks[1..].to_vec());
+                    let output = exec_ext_cmd(&cmd_toks[0], cmd_toks[1..].to_vec());
+                    write_to_file(output, &stdout_file);
                 } else {
-                    println!("{}: command not found", toks[0]);
+                    println!("{}: command not found", cmd_toks[0]);
                 }
             }
         }

@@ -32,6 +32,29 @@ pub fn tokenize(input: &str) -> Vec<String> {
                         current_token.clear();
                     }
                 }
+                '>' => {
+                    if !current_token.is_empty() {
+                        tokens.push(current_token.clone());
+                        current_token.clear();
+                    }
+                    tokens.push(">".to_string());
+                }
+                '1' => {
+                    if let Some(&next_ch) = chars.peek() {
+                        if next_ch == '>' {
+                            if !current_token.is_empty() {
+                                tokens.push(current_token.clone());
+                                current_token.clear();
+                            }
+                            chars.next();
+                            tokens.push("1>".to_string());
+                        } else {
+                            current_token.push(ch);
+                        }
+                    } else {
+                        current_token.push(ch);
+                    }
+                }
                 _ => {
                     current_token.push(ch);
                 }
