@@ -4,6 +4,8 @@ use std::process::exit;
 enum RedirState {
     StdOut,
     StdErr,
+    StdOutAppend,
+    StdErrAppend,
     Nil,
 }
 
@@ -36,6 +38,15 @@ impl Redir {
                         i += 1; // skip the redir if no filename
                     }
                 }
+                ">>" | "1>>" => {
+                    if i + 1 < toks.len() {
+                        self.redir_state = RedirState::StdOutAppend;
+                        self.stdout_file = toks[i + 1].to_string();
+                        i += 2; // skip > and filename
+                    } else {
+                        i += 1; // skip the redir if no filename
+                    }
+                }
                 "2>" => {
                     if i + 1 < toks.len() {
                         self.redir_state = RedirState::StdErr;
@@ -43,6 +54,15 @@ impl Redir {
                         i += 2;
                     } else {
                         i += 1;
+                    }
+                }
+                "2>>" => {
+                    if i + 1 < toks.len() {
+                        self.redir_state = RedirState::StdErrAppend;
+                        self.stdout_file = toks[i + 1].to_string();
+                        i += 2; // skip > and filename
+                    } else {
+                        i += 1; // skip the redir if no filename
                     }
                 }
                 _ => {
@@ -73,6 +93,12 @@ pub fn parse_tokens(toks: Vec<String>) {
             } else if matches!(redir.redir_state, RedirState::StdErr) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
+            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+                cmd.print_err();
+                cmd.append_out(redir.stdout_file);
+            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+                cmd.print_out();
+                cmd.append_err(redir.stdout_file);
             } else {
                 cmd.print();
             }
@@ -86,6 +112,12 @@ pub fn parse_tokens(toks: Vec<String>) {
             } else if matches!(redir.redir_state, RedirState::StdErr) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
+            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+                cmd.print_err();
+                cmd.append_out(redir.stdout_file);
+            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+                cmd.print_out();
+                cmd.append_err(redir.stdout_file);
             } else {
                 cmd.print();
             }
@@ -99,6 +131,12 @@ pub fn parse_tokens(toks: Vec<String>) {
             } else if matches!(redir.redir_state, RedirState::StdErr) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
+            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+                cmd.print_err();
+                cmd.append_out(redir.stdout_file);
+            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+                cmd.print_out();
+                cmd.append_err(redir.stdout_file);
             } else {
                 cmd.print();
             }
@@ -112,6 +150,12 @@ pub fn parse_tokens(toks: Vec<String>) {
             } else if matches!(redir.redir_state, RedirState::StdErr) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
+            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+                cmd.print_err();
+                cmd.append_out(redir.stdout_file);
+            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+                cmd.print_out();
+                cmd.append_err(redir.stdout_file);
             } else {
                 cmd.print();
             }
@@ -126,6 +170,12 @@ pub fn parse_tokens(toks: Vec<String>) {
             } else if matches!(redir.redir_state, RedirState::StdErr) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
+            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+                cmd.print_err();
+                cmd.append_out(redir.stdout_file);
+            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+                cmd.print_out();
+                cmd.append_err(redir.stdout_file);
             } else {
                 cmd.print();
             }

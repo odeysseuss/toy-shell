@@ -48,3 +48,22 @@ pub fn write_to_file(output: Vec<u8>, filename: String) {
         eprintln!("Could not write to {}: {}", filename.clone(), e);
     }
 }
+
+pub fn append_to_file(output: Vec<u8>, filename: String) {
+    let mut file = match fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(true)
+        .open(filename.clone())
+    {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Could not write to {}: {}", filename.clone(), e);
+            return;
+        }
+    };
+
+    if let Err(e) = file.write_all(&output) {
+        eprintln!("Could not write to {}: {}", filename.clone(), e);
+    }
+}

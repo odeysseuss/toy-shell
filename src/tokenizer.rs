@@ -33,13 +33,6 @@ pub fn tokenize(input: &str) -> Vec<String> {
                     }
                 }
                 '>' => {
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
-                    }
-                    tokens.push(">".to_string());
-                }
-                '1' => {
                     if let Some(&next_ch) = chars.peek() {
                         if next_ch == '>' {
                             if !current_token.is_empty() {
@@ -47,7 +40,42 @@ pub fn tokenize(input: &str) -> Vec<String> {
                                 current_token.clear();
                             }
                             chars.next();
-                            tokens.push("1>".to_string());
+                            tokens.push(">>".to_string());
+                        } else {
+                            current_token.push(ch);
+                        }
+                    } else {
+                        current_token.push(ch);
+                    }
+                }
+                '1' => {
+                    if let Some(&next_ch) = chars.peek() {
+                        if next_ch == '>' {
+                            chars.next();
+
+                            if let Some(&next_ch) = chars.peek() {
+                                if next_ch == '>' {
+                                    chars.next();
+
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("1>>".to_string());
+                                } else {
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("1>".to_string());
+                                }
+                            } else {
+                                if !current_token.is_empty() {
+                                    tokens.push(current_token.clone());
+                                    current_token.clear();
+                                }
+                                tokens.push("1>".to_string());
+                            }
                         } else {
                             current_token.push(ch);
                         }
@@ -58,12 +86,31 @@ pub fn tokenize(input: &str) -> Vec<String> {
                 '2' => {
                     if let Some(&next_ch) = chars.peek() {
                         if next_ch == '>' {
-                            if !current_token.is_empty() {
-                                tokens.push(current_token.clone());
-                                current_token.clear();
-                            }
                             chars.next();
-                            tokens.push("2>".to_string());
+
+                            if let Some(&next_ch) = chars.peek() {
+                                if next_ch == '>' {
+                                    chars.next();
+
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("2>>".to_string());
+                                } else {
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("2>".to_string());
+                                }
+                            } else {
+                                if !current_token.is_empty() {
+                                    tokens.push(current_token.clone());
+                                    current_token.clear();
+                                }
+                                tokens.push("2>".to_string());
+                            }
                         } else {
                             current_token.push(ch);
                         }

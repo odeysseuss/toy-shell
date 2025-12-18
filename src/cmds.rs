@@ -1,4 +1,4 @@
-use crate::utils::{check_ext_cmd, write_to_file};
+use crate::utils::{append_to_file, check_ext_cmd, write_to_file};
 use std::{env, path::Path, process::Command};
 
 pub struct Cmd {
@@ -60,6 +60,22 @@ impl Cmd {
             write_to_file("".as_bytes().to_vec(), filename);
         } else {
             write_to_file(self.stderr.as_bytes().to_vec(), filename);
+        }
+    }
+
+    pub fn append_out(self, filename: String) {
+        if self.stdout.is_empty() {
+            append_to_file("".as_bytes().to_vec(), filename);
+        } else {
+            append_to_file(self.stdout.as_bytes().to_vec(), filename);
+        }
+    }
+
+    pub fn append_err(self, filename: String) {
+        if self.stderr.is_empty() {
+            append_to_file("".as_bytes().to_vec(), filename);
+        } else {
+            append_to_file(self.stderr.as_bytes().to_vec(), filename);
         }
     }
 
