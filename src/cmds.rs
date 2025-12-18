@@ -42,6 +42,11 @@ impl Cmd {
         }
     }
 
+    pub fn print(&self) {
+        self.print_out();
+        self.print_err();
+    }
+
     pub fn write_out(self, filename: String) {
         if self.stdout.is_empty() {
             write_to_file("".as_bytes().to_vec(), filename);
@@ -69,15 +74,16 @@ impl Cmd {
     pub fn types(&mut self) {
         self.name = "type".to_string();
         let builtins: [&str; 4] = ["echo", "exit", "type", "pwd"];
-        let cmd = self.name.clone();
-        if builtins.contains(&cmd.as_str()) {
-            self.stdout = format!("{} is a shell builtin\n", cmd);
-        } else {
-            let (found, full_path) = check_ext_cmd(&cmd);
-            if found {
-                self.stdout = format!("{} is {}\n", cmd, full_path.unwrap().display());
+        if let Some(cmd) = self.args.first().clone() {
+            if builtins.contains(&cmd.as_str()) {
+                self.stdout = format!("{} is a shell builtin\n", cmd);
             } else {
-                self.stderr = format!("{} not found\n", cmd);
+                let (found, full_path) = check_ext_cmd(&cmd);
+                if found {
+                    self.stdout = format!("{} is {}\n", cmd, full_path.unwrap().display());
+                } else {
+                    self.stderr = format!("{} not found\n", cmd);
+                }
             }
         }
     }

@@ -74,7 +74,7 @@ pub fn parse_tokens(toks: Vec<String>) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
             } else {
-                cmd.print_out();
+                cmd.print();
             }
         }
         "type" => {
@@ -87,7 +87,7 @@ pub fn parse_tokens(toks: Vec<String>) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
             } else {
-                cmd.print_out();
+                cmd.print();
             }
         }
         "pwd" => {
@@ -100,7 +100,7 @@ pub fn parse_tokens(toks: Vec<String>) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
             } else {
-                cmd.print_out();
+                cmd.print();
             }
         }
         "cd" => {
@@ -113,11 +113,11 @@ pub fn parse_tokens(toks: Vec<String>) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
             } else {
-                cmd.print_out();
+                cmd.print();
             }
         }
         _ => {
-            cmd.name(cmd_toks[0]);
+            cmd.name(cmd_toks[0].clone());
             cmd.args(cmd_toks[1..].to_vec());
             cmd.external();
             if matches!(redir.redir_state, RedirState::StdOut) {
@@ -127,7 +127,7 @@ pub fn parse_tokens(toks: Vec<String>) {
                 cmd.print_out();
                 cmd.write_err(redir.stderr_file);
             } else {
-                cmd.print_out();
+                cmd.print();
             }
         }
     }
