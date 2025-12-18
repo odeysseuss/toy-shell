@@ -30,28 +30,21 @@ pub fn check_ext_cmd(cmd: &str) -> (bool, Option<PathBuf>) {
     return (false, None);
 }
 
-pub fn write_to_file(output: Vec<u8>, file_path: &Option<String>) {
-    match file_path {
-        Some(filename) => {
-            let mut file = match fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(filename)
-            {
-                Ok(file) => file,
-                Err(e) => {
-                    eprintln!("Could not write to {}: {}", filename, e);
-                    return;
-                }
-            };
+pub fn write_to_file(output: Vec<u8>, filename: String) {
+    let mut file = match fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(filename.clone())
+    {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Could not write to {}: {}", filename.clone(), e);
+            return;
+        }
+    };
 
-            if let Err(e) = file.write_all(&output) {
-                eprintln!("Could not write to {}: {}", filename, e);
-            }
-        }
-        None => {
-            print!("{}", String::from_utf8_lossy(&output));
-        }
+    if let Err(e) = file.write_all(&output) {
+        eprintln!("Could not write to {}: {}", filename.clone(), e);
     }
 }
