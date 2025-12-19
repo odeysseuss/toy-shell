@@ -24,7 +24,7 @@ impl Redir {
         }
     }
 
-    fn handler(&mut self, toks: Vec<String>) -> Vec<String> {
+    fn parse(&mut self, toks: Vec<String>) -> Vec<String> {
         let mut cmd_toks: Vec<String> = Vec::new();
         let mut i = 0;
         while i < toks.len() {
@@ -73,12 +73,30 @@ impl Redir {
         }
         return cmd_toks;
     }
+
+    fn handler(&self, cmd: Cmd) {
+        if matches!(self.redir_state, RedirState::StdOut) {
+            cmd.print_err();
+            cmd.write_out(self.stdout_file.clone());
+        } else if matches!(self.redir_state, RedirState::StdErr) {
+            cmd.print_out();
+            cmd.write_err(self.stderr_file.clone());
+        } else if matches!(self.redir_state, RedirState::StdOutAppend) {
+            cmd.print_err();
+            cmd.append_out(self.stdout_file.clone());
+        } else if matches!(self.redir_state, RedirState::StdErrAppend) {
+            cmd.print_out();
+            cmd.append_err(self.stdout_file.clone());
+        } else {
+            cmd.print();
+        }
+    }
 }
 
 pub fn parse_tokens(toks: Vec<String>) {
     let mut redir: Redir = Redir::new();
     let mut cmd: Cmd = Cmd::new();
-    let cmd_toks: Vec<String> = redir.handler(toks);
+    let cmd_toks: Vec<String> = redir.parse(toks);
 
     match cmd_toks[0].as_str() {
         "exit" => {
@@ -87,98 +105,28 @@ pub fn parse_tokens(toks: Vec<String>) {
         "echo" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.echo();
-            if matches!(redir.redir_state, RedirState::StdOut) {
-                cmd.print_err();
-                cmd.write_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErr) {
-                cmd.print_out();
-                cmd.write_err(redir.stderr_file);
-            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-                cmd.print_err();
-                cmd.append_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-                cmd.print_out();
-                cmd.append_err(redir.stdout_file);
-            } else {
-                cmd.print();
-            }
+            redir.handler(cmd);
         }
         "type" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.types();
-            if matches!(redir.redir_state, RedirState::StdOut) {
-                cmd.print_err();
-                cmd.write_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErr) {
-                cmd.print_out();
-                cmd.write_err(redir.stderr_file);
-            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-                cmd.print_err();
-                cmd.append_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-                cmd.print_out();
-                cmd.append_err(redir.stdout_file);
-            } else {
-                cmd.print();
-            }
+            redir.handler(cmd);
         }
         "pwd" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.pwd();
-            if matches!(redir.redir_state, RedirState::StdOut) {
-                cmd.print_err();
-                cmd.write_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErr) {
-                cmd.print_out();
-                cmd.write_err(redir.stderr_file);
-            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-                cmd.print_err();
-                cmd.append_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-                cmd.print_out();
-                cmd.append_err(redir.stdout_file);
-            } else {
-                cmd.print();
-            }
+            redir.handler(cmd);
         }
         "cd" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.cd();
-            if matches!(redir.redir_state, RedirState::StdOut) {
-                cmd.print_err();
-                cmd.write_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErr) {
-                cmd.print_out();
-                cmd.write_err(redir.stderr_file);
-            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-                cmd.print_err();
-                cmd.append_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-                cmd.print_out();
-                cmd.append_err(redir.stdout_file);
-            } else {
-                cmd.print();
-            }
+            redir.handler(cmd);
         }
         _ => {
             cmd.name(cmd_toks[0].clone());
             cmd.args(cmd_toks[1..].to_vec());
             cmd.external();
-            if matches!(redir.redir_state, RedirState::StdOut) {
-                cmd.print_err();
-                cmd.write_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErr) {
-                cmd.print_out();
-                cmd.write_err(redir.stderr_file);
-            } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-                cmd.print_err();
-                cmd.append_out(redir.stdout_file);
-            } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-                cmd.print_out();
-                cmd.append_err(redir.stdout_file);
-            } else {
-                cmd.print();
-            }
+            redir.handler(cmd);
         }
     }
 }
