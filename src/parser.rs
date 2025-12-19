@@ -96,7 +96,8 @@ impl Redir {
 pub fn parse_tokens(toks: Vec<String>) {
     let mut redir: Redir = Redir::new();
     let mut cmd: Cmd = Cmd::new();
-    let cmd_toks: Vec<String> = redir.parse(toks);
+    let mut cmd_toks: Vec<String> = redir.parse(toks);
+    cmd_toks = cmd.parse_pipes(cmd_toks);
 
     match cmd_toks[0].as_str() {
         "exit" => {

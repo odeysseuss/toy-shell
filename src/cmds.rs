@@ -1,9 +1,15 @@
 use crate::utils::{append_to_file, check_ext_cmd, write_to_file};
-use std::{env, path::Path, process::Command};
+use std::{
+    env,
+    path::Path,
+    process::{Command, Stdio},
+};
 
 pub struct Cmd {
     name: String,
     args: Vec<String>,
+    pipe: String,
+    pipe_args: Vec<String>,
     stdout: String,
     stderr: String,
 }
@@ -13,6 +19,8 @@ impl Cmd {
         Cmd {
             name: String::new(),
             args: Vec::new(),
+            pipe: String::new(),
+            pipe_args: Vec::new(),
             stdout: String::new(),
             stderr: String::new(),
         }
@@ -79,6 +87,33 @@ impl Cmd {
         }
     }
 
+    pub fn parse_pipes(&mut self, toks: Vec<String>) -> Vec<String> {
+        let mut cmd_toks: Vec<String> = Vec::new();
+        let mut i = 0;
+        while i < toks.len() {
+            match toks[i].as_str() {
+                "|" => {
+                    if i + 1 < toks.len() {
+                        self.pipe = toks[i + 1].to_string();
+                        i += 2; // skip | and cmd
+                        while i < toks.len() {
+                            self.pipe_args.push(toks[i].to_string());
+                            i += 1;
+                        }
+                        break;
+                    } else {
+                        i += 1; // skip the pipe if no cmd
+                    }
+                }
+                _ => {
+                    cmd_toks.push(toks[i].clone());
+                    i += 1;
+                }
+            }
+        }
+        return cmd_toks;
+    }
+
     pub fn echo(&mut self) {
         self.name = "echo".to_string();
         if self.args.is_empty() {
@@ -142,14 +177,42 @@ impl Cmd {
     pub fn external(&mut self) {
         let (found, _) = check_ext_cmd(&self.name);
         if found {
-            let cmd = Command::new(self.name.clone())
-                .args(&self.args)
-                .output()
-                .expect("Failed to execute");
+            if self.pipe.is_empty() {
+                let cmd = Command::new(self.name.clone())
+                    .args(&self.args)
+                    .output()
+                    .expect("Failed to execute");
 
-            self.stdout = format!("{}", String::from_utf8_lossy(&cmd.stdout).into_owned());
-            if !cmd.stderr.is_empty() {
-                self.stderr = format!("{}", String::from_utf8_lossy(&cmd.stderr).into_owned());
+                self.stdout = format!("{}", String::from_utf8_lossy(&cmd.stdout).into_owned());
+                if !cmd.stderr.is_empty() {
+                    self.stderr = format!("{}", String::from_utf8_lossy(&cmd.stderr).into_owned());
+                }
+            } else {
+                let mut cmd = Command::new(self.name.clone())
+                    .args(&self.args)
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .expect("Failed to execute");
+
+                let cmd_out = cmd.stdout.take().expect("Failed to capture output");
+
+                let pipe_cmd = Command::new(self.pipe.clone())
+                    .args(&self.pipe_args)
+                    .stdin(cmd_out)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .expect("Failed to execute");
+
+                let output = pipe_cmd
+                    .wait_with_output()
+                    .expect("Failed to excute cmd with pipe");
+
+                self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
+                if !output.stderr.is_empty() {
+                    self.stderr =
+                        format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
+                }
             }
         } else {
             eprintln!("{}: command not found", self.name);
