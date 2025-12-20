@@ -1,7 +1,7 @@
 use crate::cmds::Cmd;
 use std::process::exit;
 
-enum RedirState {
+pub enum RedirState {
     StdOut,
     StdErr,
     StdOutAppend,
@@ -9,10 +9,10 @@ enum RedirState {
     Nil,
 }
 
-struct Redir {
-    redir_state: RedirState,
-    stdout_file: String,
-    stderr_file: String,
+pub struct Redir {
+    pub redir_state: RedirState,
+    pub stdout_file: String,
+    pub stderr_file: String,
 }
 
 impl Redir {
@@ -73,31 +73,55 @@ impl Redir {
         }
         return cmd_toks;
     }
+}
 
-    fn handler(&self, cmd: Cmd) {
-        if matches!(self.redir_state, RedirState::StdOut) {
-            cmd.print_err();
-            cmd.write_out(self.stdout_file.clone());
-        } else if matches!(self.redir_state, RedirState::StdErr) {
-            cmd.print_out();
-            cmd.write_err(self.stderr_file.clone());
-        } else if matches!(self.redir_state, RedirState::StdOutAppend) {
-            cmd.print_err();
-            cmd.append_out(self.stdout_file.clone());
-        } else if matches!(self.redir_state, RedirState::StdErrAppend) {
-            cmd.print_out();
-            cmd.append_err(self.stdout_file.clone());
-        } else {
-            cmd.print();
+pub struct Pipe {
+    pub cmd: String,
+    pub args: Vec<String>,
+}
+
+impl Pipe {
+    pub fn new() -> Self {
+        Pipe {
+            cmd: String::new(),
+            args: Vec::new(),
         }
+    }
+
+    pub fn parse_pipes(&mut self, toks: Vec<String>) -> Vec<String> {
+        let mut cmd_toks: Vec<String> = Vec::new();
+        let mut i = 0;
+        while i < toks.len() {
+            match toks[i].as_str() {
+                "|" => {
+                    if i + 1 < toks.len() {
+                        self.cmd = toks[i + 1].to_string();
+                        i += 2; // skip | and cmd
+                        while i < toks.len() {
+                            self.args.push(toks[i].to_string());
+                            i += 1;
+                        }
+                        break;
+                    } else {
+                        i += 1; // skip the pipe if no cmd
+                    }
+                }
+                _ => {
+                    cmd_toks.push(toks[i].clone());
+                    i += 1;
+                }
+            }
+        }
+        return cmd_toks;
     }
 }
 
-pub fn parse_tokens(toks: Vec<String>) {
+pub fn evaluate(toks: Vec<String>) {
     let mut redir: Redir = Redir::new();
     let mut cmd: Cmd = Cmd::new();
+    let mut pipe: Pipe = Pipe::new();
     let mut cmd_toks: Vec<String> = redir.parse(toks);
-    cmd_toks = cmd.parse_pipes(cmd_toks);
+    cmd_toks = pipe.parse_pipes(cmd_toks);
 
     match cmd_toks[0].as_str() {
         "exit" => {
@@ -106,28 +130,28 @@ pub fn parse_tokens(toks: Vec<String>) {
         "echo" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.echo();
-            redir.handler(cmd);
+            cmd.handler(redir);
         }
         "type" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.types();
-            redir.handler(cmd);
+            cmd.handler(redir);
         }
         "pwd" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.pwd();
-            redir.handler(cmd);
+            cmd.handler(redir);
         }
         "cd" => {
             cmd.args(cmd_toks[1..].to_vec());
             cmd.cd();
-            redir.handler(cmd);
+            cmd.handler(redir);
         }
         _ => {
             cmd.name(cmd_toks[0].clone());
             cmd.args(cmd_toks[1..].to_vec());
-            cmd.external();
-            redir.handler(cmd);
+            cmd.external(pipe);
+            cmd.handler(redir);
         }
     }
 }

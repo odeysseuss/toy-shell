@@ -3,7 +3,7 @@ mod parser;
 mod tokenizer;
 mod utils;
 
-use crate::parser::parse_tokens;
+use crate::parser::evaluate;
 use crate::tokenizer::tokenize;
 
 use std::io::{self, Write};
@@ -20,6 +20,6 @@ fn main() {
         if toks.is_empty() {
             continue;
         }
-        parse_tokens(toks);
+        evaluate(toks);
     }
 }

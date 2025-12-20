@@ -1,3 +1,4 @@
+use crate::parser::{Pipe, Redir, RedirState};
 use crate::utils::{append_to_file, check_ext_cmd, write_to_file};
 use std::{
     env,
@@ -8,8 +9,6 @@ use std::{
 pub struct Cmd {
     name: String,
     args: Vec<String>,
-    pipe: String,
-    pipe_args: Vec<String>,
     stdout: String,
     stderr: String,
 }
@@ -19,8 +18,6 @@ impl Cmd {
         Cmd {
             name: String::new(),
             args: Vec::new(),
-            pipe: String::new(),
-            pipe_args: Vec::new(),
             stdout: String::new(),
             stderr: String::new(),
         }
@@ -55,7 +52,7 @@ impl Cmd {
         self.print_err();
     }
 
-    pub fn write_out(self, filename: String) {
+    pub fn write_out(&self, filename: String) {
         if self.stdout.is_empty() {
             write_to_file("".as_bytes().to_vec(), filename);
         } else {
@@ -63,7 +60,7 @@ impl Cmd {
         }
     }
 
-    pub fn write_err(self, filename: String) {
+    pub fn write_err(&self, filename: String) {
         if self.stderr.is_empty() {
             write_to_file("".as_bytes().to_vec(), filename);
         } else {
@@ -71,7 +68,7 @@ impl Cmd {
         }
     }
 
-    pub fn append_out(self, filename: String) {
+    pub fn append_out(&self, filename: String) {
         if self.stdout.is_empty() {
             append_to_file("".as_bytes().to_vec(), filename);
         } else {
@@ -79,39 +76,12 @@ impl Cmd {
         }
     }
 
-    pub fn append_err(self, filename: String) {
+    pub fn append_err(&self, filename: String) {
         if self.stderr.is_empty() {
             append_to_file("".as_bytes().to_vec(), filename);
         } else {
             append_to_file(self.stderr.as_bytes().to_vec(), filename);
         }
-    }
-
-    pub fn parse_pipes(&mut self, toks: Vec<String>) -> Vec<String> {
-        let mut cmd_toks: Vec<String> = Vec::new();
-        let mut i = 0;
-        while i < toks.len() {
-            match toks[i].as_str() {
-                "|" => {
-                    if i + 1 < toks.len() {
-                        self.pipe = toks[i + 1].to_string();
-                        i += 2; // skip | and cmd
-                        while i < toks.len() {
-                            self.pipe_args.push(toks[i].to_string());
-                            i += 1;
-                        }
-                        break;
-                    } else {
-                        i += 1; // skip the pipe if no cmd
-                    }
-                }
-                _ => {
-                    cmd_toks.push(toks[i].clone());
-                    i += 1;
-                }
-            }
-        }
-        return cmd_toks;
     }
 
     pub fn echo(&mut self) {
@@ -174,18 +144,21 @@ impl Cmd {
         }
     }
 
-    pub fn external(&mut self) {
+    pub fn external(&mut self, pipe: Pipe) {
         let (found, _) = check_ext_cmd(&self.name);
         if found {
-            if self.pipe.is_empty() {
+            if pipe.cmd.is_empty() {
                 let cmd = Command::new(self.name.clone())
                     .args(&self.args)
-                    .output()
+                    .spawn()
                     .expect("Failed to execute");
 
-                self.stdout = format!("{}", String::from_utf8_lossy(&cmd.stdout).into_owned());
-                if !cmd.stderr.is_empty() {
-                    self.stderr = format!("{}", String::from_utf8_lossy(&cmd.stderr).into_owned());
+                let output = cmd.wait_with_output().expect("Failed to get output");
+
+                self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
+                if !output.stderr.is_empty() {
+                    self.stderr =
+                        format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
                 }
             } else {
                 let mut cmd = Command::new(self.name.clone())
@@ -196,9 +169,9 @@ impl Cmd {
 
                 let cmd_out = cmd.stdout.take().expect("Failed to capture output");
 
-                let pipe_cmd = Command::new(self.pipe.clone())
-                    .args(&self.pipe_args)
-                    .stdin(cmd_out)
+                let pipe_cmd = Command::new(pipe.cmd.clone())
+                    .args(&pipe.args)
+                    .stdin(Stdio::from(cmd_out))
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn()
@@ -216,6 +189,24 @@ impl Cmd {
             }
         } else {
             eprintln!("{}: command not found", self.name);
+        }
+    }
+
+    pub fn handler(&self, redir: Redir) {
+        if matches!(redir.redir_state, RedirState::StdOut) {
+            self.print_err();
+            self.write_out(redir.stdout_file.clone());
+        } else if matches!(redir.redir_state, RedirState::StdErr) {
+            self.print_out();
+            self.write_err(redir.stderr_file.clone());
+        } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
+            self.print_err();
+            self.append_out(redir.stdout_file.clone());
+        } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
+            self.print_out();
+            self.append_err(redir.stdout_file.clone());
+        } else {
+            self.print();
         }
     }
 }
