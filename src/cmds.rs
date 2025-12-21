@@ -1,11 +1,13 @@
 use crate::parser::{Pipe, Redir, RedirState};
 use crate::utils::{append_to_file, check_ext_cmd, write_to_file};
-use std::{
-    env,
-    path::Path,
-    process::{Command, Stdio},
-};
+use libc::{STDIN_FILENO, STDOUT_FILENO, close, dup2, fork, pipe, waitpid};
+use std::os::raw::c_int;
+use std::os::unix::process::CommandExt;
+use std::process::exit;
+use std::ptr::null_mut;
+use std::{env, path::Path, process::Command};
 
+#[derive(Debug)]
 pub struct Cmd {
     name: String,
     args: Vec<String>,
@@ -144,16 +146,14 @@ impl Cmd {
         }
     }
 
-    pub fn external(&mut self, pipe: Pipe) {
+    pub fn external(&mut self, pipeline: Pipe) {
         let (found, _) = check_ext_cmd(&self.name);
         if found {
-            if pipe.cmd.is_empty() {
-                let cmd = Command::new(self.name.clone())
+            if pipeline.cmd.is_empty() {
+                let output = Command::new(self.name.clone())
                     .args(&self.args)
-                    .spawn()
+                    .output()
                     .expect("Failed to execute");
-
-                let output = cmd.wait_with_output().expect("Failed to get output");
 
                 self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
                 if !output.stderr.is_empty() {
@@ -161,52 +161,91 @@ impl Cmd {
                         format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
                 }
             } else {
-                let mut cmd = Command::new(self.name.clone())
-                    .args(&self.args)
-                    .stdout(Stdio::piped())
-                    .spawn()
-                    .expect("Failed to execute");
-
-                let cmd_out = cmd.stdout.take().expect("Failed to capture output");
-
-                let pipe_cmd = Command::new(pipe.cmd.clone())
-                    .args(&pipe.args)
-                    .stdin(Stdio::from(cmd_out))
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .expect("Failed to execute");
-
-                let output = pipe_cmd
-                    .wait_with_output()
-                    .expect("Failed to excute cmd with pipe");
-
-                self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
-                if !output.stderr.is_empty() {
-                    self.stderr =
-                        format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
-                }
+                self.handle_ext_cmd_pipe(pipeline);
             }
         } else {
             eprintln!("{}: command not found", self.name);
         }
     }
 
+    fn handle_ext_cmd_pipe(&mut self, pipeline: Pipe) {
+        unsafe {
+            let mut fds: [c_int; 2] = [0; 2];
+            if pipe(fds.as_mut_ptr()) == -1 {
+                eprintln!("Pipe failed");
+            }
+            let reader = fds[0];
+            let writer = fds[1];
+
+            let p1 = fork();
+            if p1 < 0 {
+                eprintln!("Fork failed");
+                close(reader);
+                close(writer);
+                return;
+            }
+
+            if p1 == 0 {
+                dup2(writer, STDOUT_FILENO);
+                close(reader);
+                close(writer);
+
+                let _ = Command::new(self.name.clone())
+                    .args(self.args.clone())
+                    .exec();
+
+                eprintln!("Failed to execute {}", self.name);
+                exit(1);
+            }
+
+            let p2 = fork();
+            if p2 < 0 {
+                eprintln!("Fork failed");
+                waitpid(p1, null_mut(), 0);
+                return;
+            }
+
+            if p2 == 0 {
+                dup2(reader, STDIN_FILENO);
+                close(writer);
+                close(reader);
+
+                let _ = Command::new(pipeline.cmd.clone())
+                    .args(pipeline.args)
+                    .exec();
+
+                eprintln!("Failed to execute {}", pipeline.cmd.clone());
+                exit(1);
+            }
+
+            close(reader);
+            close(writer);
+            waitpid(p1, null_mut(), 0);
+            waitpid(p2, null_mut(), 0);
+        }
+    }
+
     pub fn handler(&self, redir: Redir) {
-        if matches!(redir.redir_state, RedirState::StdOut) {
-            self.print_err();
-            self.write_out(redir.stdout_file.clone());
-        } else if matches!(redir.redir_state, RedirState::StdErr) {
-            self.print_out();
-            self.write_err(redir.stderr_file.clone());
-        } else if matches!(redir.redir_state, RedirState::StdOutAppend) {
-            self.print_err();
-            self.append_out(redir.stdout_file.clone());
-        } else if matches!(redir.redir_state, RedirState::StdErrAppend) {
-            self.print_out();
-            self.append_err(redir.stdout_file.clone());
-        } else {
-            self.print();
+        match redir.redir_state {
+            RedirState::StdOut => {
+                self.print_err();
+                self.write_out(redir.stdout_file.clone());
+            }
+            RedirState::StdErr => {
+                self.print_out();
+                self.write_err(redir.stderr_file.clone());
+            }
+            RedirState::StdOutAppend => {
+                self.print_err();
+                self.append_out(redir.stdout_file.clone());
+            }
+            RedirState::StdErrAppend => {
+                self.print_out();
+                self.append_err(redir.stderr_file.clone());
+            }
+            _ => {
+                self.print();
+            }
         }
     }
 }

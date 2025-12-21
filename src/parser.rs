@@ -1,6 +1,8 @@
 use crate::cmds::Cmd;
+use crate::tokenizer::tokenize;
 use std::process::exit;
 
+#[derive(Debug)]
 pub enum RedirState {
     StdOut,
     StdErr,
@@ -9,6 +11,7 @@ pub enum RedirState {
     Nil,
 }
 
+#[derive(Debug)]
 pub struct Redir {
     pub redir_state: RedirState,
     pub stdout_file: String,
@@ -59,7 +62,7 @@ impl Redir {
                 "2>>" => {
                     if i + 1 < toks.len() {
                         self.redir_state = RedirState::StdErrAppend;
-                        self.stdout_file = toks[i + 1].to_string();
+                        self.stderr_file = toks[i + 1].to_string();
                         i += 2; // skip > and filename
                     } else {
                         i += 1; // skip the redir if no filename
@@ -116,7 +119,12 @@ impl Pipe {
     }
 }
 
-pub fn evaluate(toks: Vec<String>) {
+pub fn evaluate(command: String) {
+    let toks: Vec<String> = tokenize(command.trim());
+    if toks.is_empty() {
+        return;
+    }
+
     let mut redir: Redir = Redir::new();
     let mut cmd: Cmd = Cmd::new();
     let mut pipe: Pipe = Pipe::new();
