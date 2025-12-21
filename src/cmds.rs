@@ -182,94 +182,114 @@ impl Cmd {
     pub fn handler(&mut self, cmd_toks: Vec<String>, redir: Redir, pipeline: Pipe) {
         self.name = cmd_toks[0].clone();
         self.args = cmd_toks[1..].to_vec();
-        if pipeline.cmd.is_empty() {
+        if pipeline.commands.is_empty() {
             if self.is_builtin(self.name.clone()) {
                 self.builtins();
-                self.handle_redir(redir);
+                self.handle_redir(&redir);
             } else {
                 let (found, _) = check_ext_cmd(&self.name);
                 if found {
                     self.external();
-                    self.handle_redir(redir);
+                    self.handle_redir(&redir);
                 } else {
                     eprintln!("{}: command not found", self.name);
                 }
             }
         } else {
-            if self.is_builtin(pipeline.cmd.clone()) {
-                self.name = pipeline.cmd;
-                self.args = pipeline.args;
-                self.builtins();
-                self.handle_redir(redir);
-            } else {
-                let (found, _) = check_ext_cmd(&pipeline.cmd);
-                if found {
-                    self.handle_ext_cmd_pipe(pipeline);
+            self.handle_pipe(&redir, pipeline);
+        }
+    }
+
+    pub fn handle_pipe(&mut self, redir: &Redir, pipeline: Pipe) {
+        unsafe {
+            let mut pipes: Vec<[c_int; 2]> = Vec::new();
+            for _ in 0..pipeline.commands.len() - 1 {
+                let mut fds: [c_int; 2] = [0; 2];
+                if pipe(fds.as_mut_ptr()) == -1 {
+                    eprintln!("Pipe failed");
+                    return;
+                }
+                pipes.push(fds);
+            }
+
+            let mut children: Vec<i32> = Vec::new();
+            let last_cmd_index = pipeline.commands.len() - 1;
+
+            for (i, cmd_toks) in pipeline.commands.iter().enumerate() {
+                if cmd_toks.is_empty() {
+                    continue;
+                }
+
+                let cmd = cmd_toks[0].clone();
+                let args = cmd_toks[1..].to_vec();
+
+                let is_last_cmd = i == last_cmd_index;
+
+                if is_last_cmd && self.is_builtin(cmd.clone()) {
+                    self.name = cmd.clone();
+                    self.args = args.clone();
+                    self.builtins();
+                    self.handle_redir(redir);
+                    return;
+                }
+
+                let pid = fork();
+                if pid < 0 {
+                    eprintln!("Fork failed");
+                    for fds in &pipes {
+                        close(fds[0]);
+                        close(fds[1]);
+                    }
+                    return;
+                }
+
+                if pid == 0 {
+                    if i > 0 {
+                        dup2(pipes[i - 1][0], STDIN_FILENO);
+                    }
+
+                    if i < pipeline.commands.len() - 1 {
+                        dup2(pipes[i][1], STDOUT_FILENO);
+                    }
+
+                    for fds in &pipes {
+                        close(fds[0]);
+                        close(fds[1]);
+                    }
+
+                    let mut command = Command::new(cmd);
+                    if !args.is_empty() {
+                        command.args(&args);
+                    }
+
+                    let error = command.exec();
+                    eprintln!("Failed to execute command: {:?}", error);
+                    exit(1);
                 } else {
-                    eprintln!("{}: command not found", pipeline.cmd);
+                    children.push(pid);
+
+                    if i < pipes.len() {
+                        close(pipes[i][1]);
+                    }
+
+                    if i > 0 {
+                        close(pipes[i - 1][0]);
+                    }
                 }
             }
+
+            for fds in &pipes {
+                close(fds[0]);
+                close(fds[1]);
+            }
+
+            for child_pid in &children {
+                waitpid(*child_pid, null_mut(), 0);
+            }
         }
     }
 
-    fn handle_ext_cmd_pipe(&mut self, pipeline: Pipe) {
-        unsafe {
-            let mut fds: [c_int; 2] = [0; 2];
-            if pipe(fds.as_mut_ptr()) == -1 {
-                eprintln!("Pipe failed");
-            }
-            let reader = fds[0];
-            let writer = fds[1];
-
-            let p1 = fork();
-            if p1 < 0 {
-                eprintln!("Fork failed");
-                close(reader);
-                close(writer);
-                return;
-            }
-
-            if p1 == 0 {
-                dup2(writer, STDOUT_FILENO);
-                close(reader);
-                close(writer);
-
-                let _ = Command::new(self.name.clone())
-                    .args(self.args.clone())
-                    .exec();
-
-                eprintln!("Failed to execute {}", self.name);
-                exit(1);
-            }
-
-            let p2 = fork();
-            if p2 < 0 {
-                eprintln!("Fork failed");
-                waitpid(p1, null_mut(), 0);
-                return;
-            }
-
-            if p2 == 0 {
-                dup2(reader, STDIN_FILENO);
-                close(writer);
-                close(reader);
-
-                let _ = Command::new(pipeline.cmd.clone())
-                    .args(pipeline.args)
-                    .exec();
-
-                eprintln!("Failed to execute {}", pipeline.cmd.clone());
-                exit(1);
-            }
-
-            close(reader);
-            close(writer);
-            waitpid(p1, null_mut(), 0);
-            waitpid(p2, null_mut(), 0);
-        }
-    }
-
-    fn handle_redir(&self, redir: Redir) {
+    fn handle_redir(&self, redir: &Redir) {
         match redir.redir_state {
             RedirState::StdOut => {
                 self.print_err();

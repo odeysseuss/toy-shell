@@ -77,43 +77,40 @@ impl Redir {
     }
 }
 
+#[derive(Debug)]
 pub struct Pipe {
-    pub cmd: String,
-    pub args: Vec<String>,
+    pub commands: Vec<Vec<String>>,
 }
 
 impl Pipe {
     pub fn new() -> Self {
         Pipe {
-            cmd: String::new(),
-            args: Vec::new(),
+            commands: Vec::new(),
         }
     }
 
     pub fn parse(&mut self, toks: Vec<String>) -> Vec<String> {
+        let mut cur_cmd: Vec<String> = Vec::new();
         let mut cmd_toks: Vec<String> = Vec::new();
-        let mut i = 0;
-        while i < toks.len() {
-            match toks[i].as_str() {
-                "|" => {
-                    if i + 1 < toks.len() {
-                        self.cmd = toks[i + 1].to_string();
-                        i += 2; // skip | and cmd
-                        while i < toks.len() {
-                            self.args.push(toks[i].to_string());
-                            i += 1;
-                        }
-                        break;
-                    } else {
-                        i += 1; // skip the pipe if no cmd
-                    }
+
+        for tok in toks {
+            if tok == "|" {
+                if !cur_cmd.is_empty() {
+                    self.commands.push(cur_cmd);
+                    cur_cmd = Vec::new();
                 }
-                _ => {
-                    cmd_toks.push(toks[i].clone());
-                    i += 1;
-                }
+            } else {
+                cur_cmd.push(tok.clone());
+                cmd_toks.push(tok);
             }
         }
+
+        if !cur_cmd.is_empty() {
+            if !self.commands.is_empty() {
+                self.commands.push(cur_cmd);
+            }
+        }
+
         return cmd_toks;
     }
 }
