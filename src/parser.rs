@@ -1,6 +1,5 @@
 use crate::cmds::Cmd;
 use crate::tokenizer::tokenize;
-use std::process::exit;
 
 #[derive(Debug)]
 pub enum RedirState {
@@ -91,7 +90,7 @@ impl Pipe {
         }
     }
 
-    pub fn parse_pipes(&mut self, toks: Vec<String>) -> Vec<String> {
+    pub fn parse(&mut self, toks: Vec<String>) -> Vec<String> {
         let mut cmd_toks: Vec<String> = Vec::new();
         let mut i = 0;
         while i < toks.len() {
@@ -129,37 +128,6 @@ pub fn evaluate(command: String) {
     let mut cmd: Cmd = Cmd::new();
     let mut pipe: Pipe = Pipe::new();
     let mut cmd_toks: Vec<String> = redir.parse(toks);
-    cmd_toks = pipe.parse_pipes(cmd_toks);
-
-    match cmd_toks[0].as_str() {
-        "exit" => {
-            exit(0);
-        }
-        "echo" => {
-            cmd.args(cmd_toks[1..].to_vec());
-            cmd.echo();
-            cmd.handler(redir);
-        }
-        "type" => {
-            cmd.args(cmd_toks[1..].to_vec());
-            cmd.types();
-            cmd.handler(redir);
-        }
-        "pwd" => {
-            cmd.args(cmd_toks[1..].to_vec());
-            cmd.pwd();
-            cmd.handler(redir);
-        }
-        "cd" => {
-            cmd.args(cmd_toks[1..].to_vec());
-            cmd.cd();
-            cmd.handler(redir);
-        }
-        _ => {
-            cmd.name(cmd_toks[0].clone());
-            cmd.args(cmd_toks[1..].to_vec());
-            cmd.external(pipe);
-            cmd.handler(redir);
-        }
-    }
+    cmd_toks = pipe.parse(cmd_toks);
+    cmd.handler(cmd_toks, redir, pipe);
 }

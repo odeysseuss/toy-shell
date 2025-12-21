@@ -25,14 +25,6 @@ impl Cmd {
         }
     }
 
-    pub fn name(&mut self, name: String) {
-        self.name = name;
-    }
-
-    pub fn args(&mut self, args: Vec<String>) {
-        self.args = args;
-    }
-
     pub fn print_out(&self) {
         if self.stdout.is_empty() {
             print!("{}", "".to_string());
@@ -94,11 +86,19 @@ impl Cmd {
         self.stdout = self.args.join(" ") + "\n";
     }
 
+    pub fn is_builtin(&self, cmd: String) -> bool {
+        let builtins: [&str; 5] = ["echo", "exit", "type", "pwd", "cd"];
+        if builtins.contains(&cmd.as_str()) {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn types(&mut self) {
         self.name = "type".to_string();
-        let builtins: [&str; 4] = ["echo", "exit", "type", "pwd"];
         if let Some(cmd) = self.args.first().clone() {
-            if builtins.contains(&cmd.as_str()) {
+            if self.is_builtin(cmd.to_string()) {
                 self.stdout = format!("{} is a shell builtin\n", cmd);
             } else {
                 let (found, full_path) = check_ext_cmd(&cmd);
@@ -146,25 +146,69 @@ impl Cmd {
         }
     }
 
-    pub fn external(&mut self, pipeline: Pipe) {
-        let (found, _) = check_ext_cmd(&self.name);
-        if found {
-            if pipeline.cmd.is_empty() {
-                let output = Command::new(self.name.clone())
-                    .args(&self.args)
-                    .output()
-                    .expect("Failed to execute");
+    pub fn builtins(&mut self) {
+        match self.name.as_str() {
+            "exit" => {
+                exit(0);
+            }
+            "echo" => {
+                self.echo();
+            }
+            "type" => {
+                self.types();
+            }
+            "pwd" => {
+                self.pwd();
+            }
+            "cd" => {
+                self.cd();
+            }
+            _ => eprintln!("Unknown"),
+        }
+    }
 
-                self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
-                if !output.stderr.is_empty() {
-                    self.stderr =
-                        format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
-                }
+    pub fn external(&mut self) {
+        let output = Command::new(self.name.clone())
+            .args(&self.args)
+            .output()
+            .expect("Failed to execute");
+
+        self.stdout = format!("{}", String::from_utf8_lossy(&output.stdout).into_owned());
+        if !output.stderr.is_empty() {
+            self.stderr = format!("{}", String::from_utf8_lossy(&output.stderr).into_owned());
+        }
+    }
+
+    pub fn handler(&mut self, cmd_toks: Vec<String>, redir: Redir, pipeline: Pipe) {
+        self.name = cmd_toks[0].clone();
+        self.args = cmd_toks[1..].to_vec();
+        if pipeline.cmd.is_empty() {
+            if self.is_builtin(self.name.clone()) {
+                self.builtins();
+                self.handle_redir(redir);
             } else {
-                self.handle_ext_cmd_pipe(pipeline);
+                let (found, _) = check_ext_cmd(&self.name);
+                if found {
+                    self.external();
+                    self.handle_redir(redir);
+                } else {
+                    eprintln!("{}: command not found", self.name);
+                }
             }
         } else {
-            eprintln!("{}: command not found", self.name);
+            if self.is_builtin(pipeline.cmd.clone()) {
+                self.name = pipeline.cmd;
+                self.args = pipeline.args;
+                self.builtins();
+                self.handle_redir(redir);
+            } else {
+                let (found, _) = check_ext_cmd(&pipeline.cmd);
+                if found {
+                    self.handle_ext_cmd_pipe(pipeline);
+                } else {
+                    eprintln!("{}: command not found", pipeline.cmd);
+                }
+            }
         }
     }
 
@@ -225,7 +269,7 @@ impl Cmd {
         }
     }
 
-    pub fn handler(&self, redir: Redir) {
+    fn handle_redir(&self, redir: Redir) {
         match redir.redir_state {
             RedirState::StdOut => {
                 self.print_err();
