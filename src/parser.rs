@@ -7,6 +7,8 @@ pub enum RedirState {
     StdErr,
     StdOutAppend,
     StdErrAppend,
+    StdOutErr,
+    StdOutErrAppend,
     Nil,
 }
 
@@ -15,6 +17,7 @@ pub struct Redir {
     pub redir_state: RedirState,
     pub stdout_file: String,
     pub stderr_file: String,
+    pub redir_file: String, // for &> and &>>
 }
 
 impl Redir {
@@ -23,6 +26,7 @@ impl Redir {
             redir_state: RedirState::Nil,
             stdout_file: String::new(),
             stderr_file: String::new(),
+            redir_file: String::new(),
         }
     }
 
@@ -62,6 +66,24 @@ impl Redir {
                     if i + 1 < toks.len() {
                         self.redir_state = RedirState::StdErrAppend;
                         self.stderr_file = toks[i + 1].to_string();
+                        i += 2; // skip > and filename
+                    } else {
+                        i += 1; // skip the redir if no filename
+                    }
+                }
+                "&>" => {
+                    if i + 1 < toks.len() {
+                        self.redir_state = RedirState::StdOutErr;
+                        self.redir_file = toks[i + 1].to_string();
+                        i += 2; // skip > and filename
+                    } else {
+                        i += 1; // skip the redir if no filename
+                    }
+                }
+                "&>>" => {
+                    if i + 1 < toks.len() {
+                        self.redir_state = RedirState::StdOutErrAppend;
+                        self.redir_file = toks[i + 1].to_string();
                         i += 2; // skip > and filename
                     } else {
                         i += 1; // skip the redir if no filename

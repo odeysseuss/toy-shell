@@ -118,6 +118,41 @@ pub fn tokenize(input: &str) -> Vec<String> {
                         current_token.push(ch);
                     }
                 }
+                '&' => {
+                    if let Some(&next_ch) = chars.peek() {
+                        if next_ch == '>' {
+                            chars.next();
+
+                            if let Some(&next_ch) = chars.peek() {
+                                if next_ch == '>' {
+                                    chars.next();
+
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("&>>".to_string());
+                                } else {
+                                    if !current_token.is_empty() {
+                                        tokens.push(current_token.clone());
+                                        current_token.clear();
+                                    }
+                                    tokens.push("&>".to_string());
+                                }
+                            } else {
+                                if !current_token.is_empty() {
+                                    tokens.push(current_token.clone());
+                                    current_token.clear();
+                                }
+                                tokens.push("&>".to_string());
+                            }
+                        } else {
+                            current_token.push(ch);
+                        }
+                    } else {
+                        current_token.push(ch);
+                    }
+                }
                 '|' => {
                     if !current_token.is_empty() {
                         tokens.push(current_token.clone());

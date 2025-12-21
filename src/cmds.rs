@@ -62,6 +62,19 @@ impl Cmd {
         }
     }
 
+    pub fn write_redir(&self, filename: String) {
+        if self.stdout.is_empty() {
+            write_to_file("".as_bytes().to_vec(), filename.clone());
+        } else {
+            write_to_file(self.stdout.as_bytes().to_vec(), filename.clone());
+        }
+        if self.stderr.is_empty() {
+            append_to_file("".as_bytes().to_vec(), filename.clone());
+        } else {
+            append_to_file(self.stderr.as_bytes().to_vec(), filename.clone());
+        }
+    }
+
     pub fn append_out(&self, filename: String) {
         if self.stdout.is_empty() {
             append_to_file("".as_bytes().to_vec(), filename);
@@ -75,6 +88,19 @@ impl Cmd {
             append_to_file("".as_bytes().to_vec(), filename);
         } else {
             append_to_file(self.stderr.as_bytes().to_vec(), filename);
+        }
+    }
+
+    pub fn append_redir(&self, filename: String) {
+        if self.stdout.is_empty() {
+            append_to_file("".as_bytes().to_vec(), filename.clone());
+        } else {
+            append_to_file(self.stdout.as_bytes().to_vec(), filename.clone());
+        }
+        if self.stderr.is_empty() {
+            append_to_file("".as_bytes().to_vec(), filename.clone());
+        } else {
+            append_to_file(self.stderr.as_bytes().to_vec(), filename.clone());
         }
     }
 
@@ -306,6 +332,12 @@ impl Cmd {
             RedirState::StdErrAppend => {
                 self.print_out();
                 self.append_err(redir.stderr_file.clone());
+            }
+            RedirState::StdOutErr => {
+                self.write_redir(redir.redir_file.clone());
+            }
+            RedirState::StdOutErrAppend => {
+                self.append_redir(redir.redir_file.clone());
             }
             _ => {
                 self.print();
