@@ -1,18 +1,36 @@
 mod cmds;
+mod editor;
 mod parser;
 mod tokenizer;
 mod utils;
 
 use crate::parser::evaluate;
+use editor::EditHelper;
+use rustyline::{Editor, error::ReadlineError};
 
-use std::io::{self, Write};
+fn main() -> rustyline::Result<()> {
+    let mut editor: Editor<EditHelper, _> = Editor::new()?;
+    editor.set_helper(Some(EditHelper));
 
-fn main() {
     loop {
-        print!("$ ");
-        io::stdout().flush().unwrap();
-        let mut command: String = String::new();
-        io::stdin().read_line(&mut command).unwrap();
-        evaluate(command);
+        let readline = editor.readline("$ ");
+        match readline {
+            Ok(line) => {
+                evaluate(line);
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
     }
+    Ok(())
 }
