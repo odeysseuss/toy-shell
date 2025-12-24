@@ -143,10 +143,8 @@ pub fn handle_redir(cmd: &mut Cmd, parser: Parser) {
         if let Some((filename, is_append)) = parser.redir.stdout_file {
             if is_append {
                 append_out(cmd, filename);
-                print_err(cmd);
             } else {
                 write_out(cmd, filename);
-                print_err(cmd);
             }
         } else {
             print_out(cmd);
@@ -155,10 +153,8 @@ pub fn handle_redir(cmd: &mut Cmd, parser: Parser) {
         if let Some((filename, is_append)) = parser.redir.stderr_file {
             if is_append {
                 append_err(cmd, filename);
-                print_out(cmd);
             } else {
                 write_err(cmd, filename);
-                print_out(cmd);
             }
         } else {
             print_err(cmd);
