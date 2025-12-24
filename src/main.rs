@@ -6,7 +6,7 @@ mod utils;
 
 use crate::{commands::cmds::Cmd, parser::parser::Parser};
 use editor::EditHelper;
-use rustyline::{Editor, error::ReadlineError};
+use rustyline::{Config, Editor, error::ReadlineError};
 use std::process::exit;
 
 pub fn evaluate(command: String) {
@@ -17,7 +17,11 @@ pub fn evaluate(command: String) {
 }
 
 fn main() -> rustyline::Result<()> {
-    let mut editor: Editor<EditHelper, _> = Editor::new()?;
+    let config = Config::builder()
+        .completion_type(rustyline::CompletionType::List)
+        .build();
+
+    let mut editor: Editor<EditHelper, _> = Editor::with_config(config)?;
     editor.set_helper(Some(EditHelper));
 
     loop {

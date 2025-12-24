@@ -16,12 +16,13 @@ impl Completer for EditHelper {
         _ctx: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
         let builtins = get_builtins();
-        let prefix = &line[..pos];
+
+        let (start, word) = extract_word(line, pos);
 
         let mut candidates: Vec<String> = builtins
             .into_iter()
-            .filter(|cmd| cmd.starts_with(prefix))
-            .map(|cmd| format!("{} ", cmd))
+            .filter(|cmd| cmd.starts_with(&word))
+            .map(|s| s.to_string())
             .collect();
 
         if let Some(paths) = env::var_os("PATH") {
@@ -29,11 +30,11 @@ impl Completer for EditHelper {
                 if let Ok(entries) = std::fs::read_dir(dir) {
                     for entry in entries.flatten() {
                         if let Ok(file_name) = entry.file_name().into_string() {
-                            if file_name.starts_with(prefix) {
+                            if file_name.starts_with(&word) {
                                 let full_path = entry.path();
                                 if full_path.is_file() && is_exec(&full_path) {
-                                    if !candidates.iter().any(|c| c.trim_end() == file_name) {
-                                        candidates.push(format!("{} ", file_name));
+                                    if !candidates.iter().any(|c| c == &file_name) {
+                                        candidates.push(file_name);
                                     }
                                 }
                             }
@@ -43,8 +44,30 @@ impl Completer for EditHelper {
             }
         }
 
-        Ok((0, candidates))
+        candidates.sort();
+
+        let candidates: Vec<String> = if candidates.len() == 1 {
+            vec![format!("{} ", candidates[0])]
+        } else {
+            candidates
+        };
+
+        Ok((start, candidates))
     }
+}
+
+fn extract_word(line: &str, pos: usize) -> (usize, String) {
+    if pos == 0 {
+        return (0, String::new());
+    }
+
+    let mut start = pos;
+    while start > 0 && !line[start - 1..start].chars().any(|c| c.is_whitespace()) {
+        start -= 1;
+    }
+
+    let word = line[start..pos].to_string();
+    (start, word)
 }
 
 impl rustyline::highlight::Highlighter for EditHelper {}
