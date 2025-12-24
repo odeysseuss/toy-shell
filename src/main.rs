@@ -1,12 +1,20 @@
-mod cmds;
+mod commands;
 mod editor;
 mod parser;
 mod tokenizer;
 mod utils;
 
-use crate::parser::evaluate;
+use crate::{commands::cmds::Cmd, parser::parser::Parser};
 use editor::EditHelper;
 use rustyline::{Editor, error::ReadlineError};
+use std::process::exit;
+
+pub fn evaluate(command: String) {
+    let mut parser = Parser::new();
+    let cmd_toks = parser.parse(command);
+    let mut cmd = Cmd::new();
+    cmd.handler(cmd_toks, parser);
+}
 
 fn main() -> rustyline::Result<()> {
     let mut editor: Editor<EditHelper, _> = Editor::new()?;
@@ -19,11 +27,9 @@ fn main() -> rustyline::Result<()> {
                 evaluate(line);
             }
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
+                exit(130);
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
                 break;
             }
             Err(err) => {

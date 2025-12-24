@@ -1,3 +1,4 @@
+use crate::commands::cmds::get_builtins;
 use rustyline::completion::Completer;
 
 pub struct EditHelper;
@@ -5,28 +6,27 @@ pub struct EditHelper;
 impl rustyline::Helper for EditHelper {}
 
 impl Completer for EditHelper {
-    type Candidate = &'static str;
+    type Candidate = String; // Change from &'static str to String
+
     fn complete(
         &self,
         line: &str,
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        if "echo ".starts_with(&line[..pos]) {
-            return Ok((0, vec!["echo "]));
+        let builtins = get_builtins();
+        let prefix = &line[..pos];
+
+        let candidates: Vec<String> = builtins
+            .into_iter()
+            .filter(|&cmd| cmd.starts_with(prefix))
+            .map(|cmd| format!("{} ", cmd))
+            .collect();
+
+        if !candidates.is_empty() {
+            return Ok((0, candidates));
         }
-        if "type ".starts_with(&line[..pos]) {
-            return Ok((0, vec!["type "]));
-        }
-        if "pwd ".starts_with(&line[..pos]) {
-            return Ok((0, vec!["pwd "]));
-        }
-        if "cd ".starts_with(&line[..pos]) {
-            return Ok((0, vec!["cd "]));
-        }
-        if "exit ".starts_with(&line[..pos]) {
-            return Ok((0, vec!["exit "]));
-        }
+
         Ok((0, vec![]))
     }
 }
