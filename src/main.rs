@@ -1,10 +1,10 @@
-mod commands;
 mod editor;
+mod handler;
 mod parser;
 mod tokenizer;
 mod utils;
 
-use crate::{commands::cmds::Cmd, parser::parser::Parser};
+use crate::{handler::cmds::Cmd, parser::parser::Parser};
 use editor::EditHelper;
 use rustyline::{Config, Editor, error::ReadlineError};
 use std::process::exit;

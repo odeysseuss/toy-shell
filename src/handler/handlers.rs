@@ -1,5 +1,5 @@
 use crate::{
-    commands::{
+    handler::{
         builtins::{handle_builtins, is_builtin},
         cmds::Cmd,
         utils::{append_err, append_out, print_err, print_out, write_err, write_out},

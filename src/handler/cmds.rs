@@ -1,5 +1,5 @@
 use crate::{
-    commands::{
+    handler::{
         builtins::{handle_builtins, is_builtin},
         handlers::{handle_pipe, handle_redir},
     },

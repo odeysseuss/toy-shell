@@ -1,4 +1,4 @@
-use crate::{commands::cmds::get_builtins, utils::is_exec};
+use crate::{handler::cmds::get_builtins, utils::is_exec};
 use rustyline::completion::Completer;
 use std::env;
 

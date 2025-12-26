@@ -1,5 +1,5 @@
 use crate::{
-    commands::cmds::{Cmd, get_builtins},
+    handler::cmds::{Cmd, get_builtins},
     utils::check_ext_cmd,
 };
 use std::{env, path::Path, process::exit};

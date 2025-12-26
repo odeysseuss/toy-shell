@@ -1,5 +1,5 @@
 use crate::{
-    commands::cmds::Cmd,
+    handler::cmds::Cmd,
     utils::{append_to_file, write_to_file},
 };
 
